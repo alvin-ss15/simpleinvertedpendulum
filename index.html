@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controlled Pendulum Simulation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Inverted Pendulum on a Moving Cart</h1>
+        <canvas id="invertedPendulumCanvas" width="800" height="400"></canvas>
+
+        <!-- Slider to control the cart's position -->
+        <div class="controls">
+            <label for="cartXSlider">Cart Position:</label>
+            <input type="range" id="cartXSlider" min="0" max="800" value="400">
+            <span id="cartXValue">400</span>
+        </div>
+
+        <!-- Control buttons for Start, Pause, Reset -->
+        <div class="buttons">
+            <button id="startButton">Start</button>
+            <button id="pauseButton">Pause</button>
+            <button id="resetButton">Reset</button>
+        </div>
+    </div>
+    <script src="invertedPendulum.js"></script>
+</body>
+</html>
