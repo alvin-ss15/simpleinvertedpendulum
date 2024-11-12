@@ -1,4 +1,4 @@
-const canvas = document.getElementById('invertedPendulumCanvas');
+﻿const canvas = document.getElementById('invertedPendulumCanvas');
 const ctx = canvas.getContext('2d');
 
 // Constants for the pendulum system
@@ -7,7 +7,7 @@ const rodLength = 150;
 const cartWidth = 80;
 const cartHeight = 40;
 const damping = 0.02;
-const dt = 0.016;
+const dt = 0.02;
 const edgeTimeThreshold = 2;
 
 // Initial PID Controller Coefficients (will be adjusted by sliders)
@@ -30,66 +30,33 @@ let edgeTimer = 0;
 let direction = 1;
 
 // Simulation control variables
-let isRunning = false;
+let isRunning = true; // Start running automatically
 let animationFrameId = null;
 
+// Trail
+const trail = [];
+const maxTrailLength = 100; // Maximum trail length
+
 // Convergence Rate and PID Coefficient Sliders
-const convergenceRateSlider = document.getElementById('convergenceRateSlider');
-const convergenceRateValue = document.getElementById('convergenceRateValue');
-const kpSlider = document.getElementById('kpSlider');
-const kpValue = document.getElementById('kpValue');
-const kiSlider = document.getElementById('kiSlider');
-const kiValue = document.getElementById('kiValue');
-const kdSlider = document.getElementById('kdSlider');
-const kdValue = document.getElementById('kdValue');
-
-// Update convergence rate and PID coefficients based on slider values
-convergenceRateSlider.addEventListener('input', (event) => {
+document.getElementById('convergenceRateSlider').addEventListener('input', (event) => {
     convergenceRate = parseFloat(event.target.value);
-    convergenceRateValue.textContent = event.target.value;
+    document.getElementById('convergenceRateValue').textContent = event.target.value;
 });
-
-kpSlider.addEventListener('input', (event) => {
+document.getElementById('kpSlider').addEventListener('input', (event) => {
     Kp = parseFloat(event.target.value) * convergenceRate;
-    kpValue.textContent = event.target.value;
+    document.getElementById('kpValue').textContent = event.target.value;
 });
-
-kiSlider.addEventListener('input', (event) => {
+document.getElementById('kiSlider').addEventListener('input', (event) => {
     Ki = parseFloat(event.target.value) * convergenceRate;
-    kiValue.textContent = event.target.value;
+    document.getElementById('kiValue').textContent = event.target.value;
 });
-
-kdSlider.addEventListener('input', (event) => {
+document.getElementById('kdSlider').addEventListener('input', (event) => {
     Kd = parseFloat(event.target.value) * convergenceRate;
-    kdValue.textContent = event.target.value;
+    document.getElementById('kdValue').textContent = event.target.value;
 });
 
-// Button elements for controlling the simulation
-const startButton = document.getElementById('startButton');
-const pauseButton = document.getElementById('pauseButton');
-const resetButton = document.getElementById('resetButton');
-
-// Start the animation
-startButton.addEventListener('click', () => {
-    if (!isRunning) {
-        isRunning = true;
-        animate();
-    }
-});
-
-// Pause the animation
-pauseButton.addEventListener('click', () => {
-    if (isRunning) {
-        isRunning = false;
-        cancelAnimationFrame(animationFrameId);
-    }
-});
-
-// Reset the simulation
-resetButton.addEventListener('click', () => {
-    resetSimulation();
-    draw();
-});
+// Reset button functionality
+document.getElementById('resetButton').addEventListener('click', resetSimulation);
 
 function resetSimulation() {
     cartX = canvas.width / 2;
@@ -101,8 +68,17 @@ function resetSimulation() {
     atEdge = false;
     edgeTimer = 0;
     direction = 1;
-    isRunning = false;
-    cancelAnimationFrame(animationFrameId);
+    isRunning = true;
+
+    trail.length = 10; // Clear trail
+
+    // Draw the initial state of the cart and pendulum
+    draw();
+
+    // Automatically start the animation
+    animate();
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear trail canvas
 }
 
 // Physics Update for Pendulum Rotation and Cart Translation with PI-D Control
@@ -154,24 +130,43 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const pivotX = cartX;
-    const pivotY = canvas.height / 2;
+    const pivotY = 0.3*canvas.height;
     const bobX = pivotX + rodLength * Math.sin(theta);
     const bobY = pivotY - rodLength * Math.cos(theta);
 
-    ctx.fillStyle = '#4CAF50';
+    trail.push({ x: bobX, y: bobY, opacity: 1.0 });
+    if (trail.length > maxTrailLength) trail.shift();
+
+    drawTrail();
+    ctx.fillStyle = '#47e3ff';
     ctx.fillRect(cartX - cartWidth / 2, pivotY - cartHeight / 2, cartWidth, cartHeight);
 
     ctx.beginPath();
     ctx.moveTo(pivotX, pivotY);
     ctx.lineTo(bobX, bobY);
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 2;
     ctx.strokeStyle = '#000';
     ctx.stroke();
-
+    
     ctx.beginPath();
-    ctx.arc(bobX, bobY, 10, 0, 2 * Math.PI);
+    ctx.arc(bobX, bobY, 12, 0, 2 * Math.PI);
     ctx.fillStyle = '#ff6347';
     ctx.fill();
+    
+}
+
+// Draw fading trail
+function drawTrail() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    trail.forEach(point => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(99, 71, 255, ${point.opacity})`;
+        ctx.fill();
+        point.opacity -= 0.03;
+        if (point.opacity < 0) point.opacity = 0;
+    });
 }
 
 // Handle keyboard input for left/right arrow keys
@@ -193,5 +188,5 @@ function animate() {
     }
 }
 
-// Start the animation
+// Automatically start the animation
 resetSimulation();
