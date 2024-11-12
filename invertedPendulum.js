@@ -1,4 +1,4 @@
-﻿const canvas = document.getElementById('invertedPendulumCanvas');
+const canvas = document.getElementById('invertedPendulumCanvas');
 const ctx = canvas.getContext('2d');
 
 // Constants for the pendulum system
@@ -10,12 +10,15 @@ const damping = 0.02;
 const dt = 0.016;
 const edgeTimeThreshold = 2;
 
-// PD Controller Constants
-const Kp = 50;
-const Kd = 5;
+// Initial PID Controller Coefficients (will be adjusted by sliders)
+let Kp = 50;
+let Ki = 1;
+let Kd = 5;
+let integralError = 0;
+let convergenceRate = 5;
 
 // Initial states for the cart and pendulum
-let cartX = canvas.width / 2;
+let cartX = canvas.width / 2; // Start cart at the center
 let prevCartX = cartX;
 let cartVelocity = 0;
 let theta = Math.PI;
@@ -30,15 +33,35 @@ let direction = 1;
 let isRunning = false;
 let animationFrameId = null;
 
-// Link cartX to the slider control
-const cartXSlider = document.getElementById('cartXSlider');
-const cartXValue = document.getElementById('cartXValue');
+// Convergence Rate and PID Coefficient Sliders
+const convergenceRateSlider = document.getElementById('convergenceRateSlider');
+const convergenceRateValue = document.getElementById('convergenceRateValue');
+const kpSlider = document.getElementById('kpSlider');
+const kpValue = document.getElementById('kpValue');
+const kiSlider = document.getElementById('kiSlider');
+const kiValue = document.getElementById('kiValue');
+const kdSlider = document.getElementById('kdSlider');
+const kdValue = document.getElementById('kdValue');
 
-// Update cartX based on slider value
-cartXSlider.addEventListener('input', (event) => {
-    prevCartX = cartX;
-    cartX = parseFloat(event.target.value);
-    cartXValue.textContent = event.target.value;
+// Update convergence rate and PID coefficients based on slider values
+convergenceRateSlider.addEventListener('input', (event) => {
+    convergenceRate = parseFloat(event.target.value);
+    convergenceRateValue.textContent = event.target.value;
+});
+
+kpSlider.addEventListener('input', (event) => {
+    Kp = parseFloat(event.target.value) * convergenceRate;
+    kpValue.textContent = event.target.value;
+});
+
+kiSlider.addEventListener('input', (event) => {
+    Ki = parseFloat(event.target.value) * convergenceRate;
+    kiValue.textContent = event.target.value;
+});
+
+kdSlider.addEventListener('input', (event) => {
+    Kd = parseFloat(event.target.value) * convergenceRate;
+    kdValue.textContent = event.target.value;
 });
 
 // Button elements for controlling the simulation
@@ -65,7 +88,7 @@ pauseButton.addEventListener('click', () => {
 // Reset the simulation
 resetButton.addEventListener('click', () => {
     resetSimulation();
-    draw(); // Redraw the initial state
+    draw();
 });
 
 function resetSimulation() {
@@ -74,6 +97,7 @@ function resetSimulation() {
     cartVelocity = 0;
     theta = Math.PI;
     angularVelocity = 0;
+    integralError = 0;
     atEdge = false;
     edgeTimer = 0;
     direction = 1;
@@ -81,7 +105,7 @@ function resetSimulation() {
     cancelAnimationFrame(animationFrameId);
 }
 
-// Physics Update for Pendulum Rotation and Cart Translation with PD Control
+// Physics Update for Pendulum Rotation and Cart Translation with PI-D Control
 function updatePhysics() {
     const sinTheta = Math.sin(theta);
     const cosTheta = Math.cos(theta);
@@ -98,35 +122,30 @@ function updatePhysics() {
     theta += angularVelocity * dt;
 
     const angleError = Math.PI - theta;
-    const controlForce = Kp * angleError - Kd * angularVelocity;
+    integralError += angleError * dt;
+
+    const controlForce = Kp * angleError + Ki * integralError - Kd * angularVelocity;
 
     cartVelocity = controlForce * dt * direction;
     cartX += cartVelocity;
 
     if (cartX <= cartWidth / 2) {
         cartX = cartWidth / 2;
-        if (!atEdge) {
-            atEdge = true;
-            edgeTimer = 0;
-        }
+        atEdge = true;
+        edgeTimer += dt;
     } else if (cartX >= canvas.width - cartWidth / 2) {
         cartX = canvas.width - cartWidth / 2;
-        if (!atEdge) {
-            atEdge = true;
-            edgeTimer = 0;
-        }
+        atEdge = true;
+        edgeTimer += dt;
     } else {
         atEdge = false;
         edgeTimer = 0;
     }
 
-    if (atEdge) {
-        edgeTimer += dt;
-        if (edgeTimer >= edgeTimeThreshold) {
-            direction *= -1;
-            edgeTimer = 0;
-            atEdge = false;
-        }
+    if (atEdge && edgeTimer >= edgeTimeThreshold) {
+        direction *= -1;
+        edgeTimer = 0;
+        atEdge = false;
     }
 }
 
@@ -155,6 +174,16 @@ function draw() {
     ctx.fill();
 }
 
+// Handle keyboard input for left/right arrow keys
+window.addEventListener('keydown', (event) => {
+    const deviationStep = 5; // Amount of deviation per key press
+    if (event.key === 'ArrowLeft') {
+        cartX -= deviationStep;
+    } else if (event.key === 'ArrowRight') {
+        cartX += deviationStep;
+    }
+});
+
 // Animation loop
 function animate() {
     if (isRunning) {
@@ -165,4 +194,4 @@ function animate() {
 }
 
 // Start the animation
-resetSimulation(); // Initialize in a reset state
+resetSimulation();
